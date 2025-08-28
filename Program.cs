@@ -1,7 +1,7 @@
-﻿using System.Net;
+﻿using Microsoft.Extensions.Configuration;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Microsoft.Extensions.Configuration;
 
 var appRootPath = Directory.GetCurrentDirectory()
     + $"{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}";
@@ -13,7 +13,7 @@ var configuration = new ConfigurationBuilder()
     .Build();
 
 var hostName = configuration["ServerHost"];
-var port = configuration["Server_port"];
+var port = configuration["ServerPort"];
 IPHostEntry ipHostInfo = await Dns.GetHostEntryAsync(hostName);
 IPAddress ipAddress;
 if (ipHostInfo.AddressList.Length >= 2)
@@ -30,8 +30,21 @@ using TcpClient client = new();
 await client.ConnectAsync(endPoint);
 await using NetworkStream stream = client.GetStream();
 
-var buffer = new byte[1_024];
-int received = await stream.ReadAsync(buffer);
-
-var message = Encoding.UTF8.GetString(buffer, 0, received);
-Console.WriteLine($"Message received: \"{message}\"");
+string inputDataFllePath = appRootPath + configuration["InputPath"];
+try
+{
+    using (StreamReader reader = new StreamReader(inputDataFllePath))
+    {
+        string line;
+        while ((line = reader.ReadLine()) != null)
+        {
+            byte[] byteArray = Encoding.UTF8.GetBytes(line);
+            stream.Write(byteArray);
+            Console.WriteLine($"Message sended: \"{line}\"");
+        }
+    }
+}
+catch (IOException e)
+{
+    Console.WriteLine($"Error reading file: {e.Message}");
+}
